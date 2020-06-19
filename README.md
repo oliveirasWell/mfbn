@@ -242,6 +242,7 @@ E.g., `show_timing` track (and show in bash) the execution time of each algorith
     $ conda install -c anaconda scipy
     $ conda install -c anaconda networkx
     $ conda install -c bioconda sharedmem 
+    $ conda install -c anaconda pyspark 
 
 **Release History**
 

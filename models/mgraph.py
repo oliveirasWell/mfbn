@@ -168,7 +168,7 @@ class MGraph(Graph):
 
         return coarse
 
-    def gmb(self, vertices=None, reduction_factor=0.5, reverse=True):
+    def gmb(self, sparkContext=None, vertices=None, reduction_factor=0.5, reverse=True):
         """
         Matches are restricted between vertices that are not adjacent
         but are only allowed to match with neighbors of its neighbors,
@@ -181,6 +181,14 @@ class MGraph(Graph):
         # Search two-hopes neighborhood for each vertex in selected layer
         dict_edges = dict()
         visited = [0] * self.vcount()
+
+        # here we are going to use map
+        # sparkContext.parallelize(vertices)
+        #
+        # vertices.map(
+        #  lambda: a : a + 10
+        # )
+
         for vertex in vertices:
             neighborhood = self.neighborhood(vertices=vertex, order=2)
             twohops = neighborhood[(len(self['adjlist'][vertex]) + 1):]
@@ -194,6 +202,14 @@ class MGraph(Graph):
         visited = [0] * self.vcount()
         edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
         merge_count = int(reduction_factor * len(vertices))
+
+        # rdd.read(dict_edges)
+        # dict_edges.sortByKey
+        #
+        #
+        # dict_edges
+        #
+
         for edge, value in edges:
             vertex = edge[0]
             neighbor = edge[1]
@@ -208,7 +224,13 @@ class MGraph(Graph):
 
         return matching
 
-    def rgmb(self, matching, vertices=None, reduction_factor=0.5, seed_priority='random', reverse=True):
+    def rgmb(self,
+             matching,
+             sparkContext=None,
+             vertices=None,
+             reduction_factor=0.5,
+             seed_priority='random',
+             reverse=True):
         """
         Matches are restricted between vertices that are not adjacent
         but are only allowed to match with neighbors of its neighbors,
@@ -373,8 +395,18 @@ class MGraph(Graph):
 
         return graph
 
-    def mlpb(self, vertices=None, seed_priority='strength', reduction_factor=0.5, itr=10, tolerance=0.05,
-             upper_bound=0.2, n=None, global_min_vertices=None, fixed=[], reverse=True):
+    def mlpb(self,
+             sparkContext=None,
+             vertices=None,
+             seed_priority='strength',
+             reduction_factor=0.5,
+             itr=10,
+             tolerance=0.05,
+             upper_bound=0.2,
+             n=None,
+             global_min_vertices=None,
+             fixed=[],
+             reverse=True):
 
         """ Matching via weight-constrained label propagation and neighborhood. """
 

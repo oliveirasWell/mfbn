@@ -64,10 +64,11 @@ import os
 import inspect
 import json
 
+sys.path.insert(0, 'models.zip')
 from models.mgraph import MGraph
 from models.coarsening import Coarsening
 import models.args as args
-
+from pyspark import SparkContext, SparkConf
 from models.timing import Timing
 
 __maintainer__ = 'Alan Valejo'
@@ -81,7 +82,7 @@ __version__ = '0.1.0'
 __date__ = '2020-04-25'
 
 
-def main():
+def main(sparkContextParam):
     """
     Main entry point for the application when run from the command line.
     """
@@ -112,6 +113,7 @@ def main():
     with timing.timeit_context_add('Coarsening'):
 
         kwargs = dict(
+            sparkContext=sparkContextParam,
             reduction_factor=options.reduction_factor, max_levels=options.max_levels,
             matching=options.matching, similarity=options.similarity, itr=options.itr,
             upper_bound=options.upper_bound, global_min_vertices=options.global_min_vertices,
@@ -210,4 +212,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    conf = SparkConf().setAppName("app")
+    sc = SparkContext(conf=conf)
+    sys.exit(main(sparkContextParam=sc))

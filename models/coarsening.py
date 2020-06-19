@@ -36,12 +36,17 @@ import sys
 import numpy
 import multiprocessing as mp
 
-from models.timing import Timing
+from models.list_param import ListParam
 from models.similarity import Similarity
 
 
-def modified_starmap_async(function, kwargs):
+
+def modified_starmap_async_legacy(function, kwargs):
     return function(**kwargs)
+
+def modified_starmap_async(args):
+    function = args[0]
+    return function(**args[1])
 
 
 class Coarsening:
@@ -53,6 +58,10 @@ class Coarsening:
             'similarity': None, 'itr': None, 'upper_bound': None, 'seed_priority': None,
             'global_min_vertices': None, 'tolerance': None, 'reverse': None, 'threads': 1
         }
+
+        if 'sparkContext' in kwargs:
+            self.sparkContext = kwargs['sparkContext']
+            del kwargs['sparkContext']
 
         self.__dict__.update(prop_defaults)
         self.__dict__.update(kwargs)
@@ -219,6 +228,8 @@ class Coarsening:
 
                     kwargs = dict(reduction_factor=self.reduction_factor[layer])
 
+                    # if self.matching[layer] in ['gmb']:
+                    #     kwargs['sparkContext'] = self.sparkContext
                     if self.matching[layer] in ['mlpb', 'gmb', 'rgmb']:
                         kwargs['vertices'] = graph['vertices_by_type'][layer]
                         kwargs['reverse'] = self.reverse[layer]
@@ -241,25 +252,54 @@ class Coarsening:
                     args.append([(matching_function, kwargs)])
 
             if contract:
-                # Create pools
+
                 pool = mp.Pool(processes=self.threads)
                 processes = []
                 for arg in args:
-                    processes.append(pool.starmap_async(modified_starmap_async, arg))
+                    processes.append(pool.starmap_async(modified_starmap_async_legacy, arg))
 
                 # Merge chunked solutions
                 matching = numpy.arange(graph.vcount())
+                matching2 = numpy.arange(graph.vcount())
+                print('matching')
+                print(len(matching))
+                print(matching)
+
+                # print('------------------[*matching]------------------')
+                # print([*matching])
+                # print('------------------[*matching]------------------')
+
+                accum_list = self.sparkContext.accumulator([*matching], ListParam())
+
+                def runMatching(arg):
+                    result = modified_starmap_async(arg[0])
+                    vertices = numpy.where(result > -1)[0]
+                    accum_list.add((result, vertices))
+
+                self.sparkContext.parallelize(args).foreach(
+                    lambda argA: runMatching(argA)
+                )
+
+                for arg in args:
+                    result = modified_starmap_async(arg[0])
+                    vertices = numpy.where(result > -1)[0]
+                    matching[vertices] = result[vertices]
+
                 for process in processes:
                     result = process.get()[0]
                     vertices = numpy.where(result > -1)[0]
-                    matching[vertices] = result[vertices]
+                    matching2[vertices] = result[vertices]
 
                 # Close processes
                 pool.close()
                 pool.join()
 
+                for i in matching:
+                    if not accum_list.value[i] == matching[i] and accum_list.value[i] == matching2[i]:
+                        raise Exception("Not Equivalent")
+
                 # Contract current graph using the matching
-                coarsened_graph = graph.contract(matching)
+                coarsened_graph = graph.contract(matching2)
                 coarsened_graph['level'] = level
 
                 if coarsened_graph.vcount() == graph.vcount():
