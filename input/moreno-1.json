@@ -16,9 +16,10 @@
 		350
 	],
 	"matching": [
-		"mlpb",
-		"mlpb"
+		"gmb",
+		"gmb"
 	],
+	"spark": true,
 	"similarity": [
 		"weighted_common_neighbors",
 		"weighted_common_neighbors"

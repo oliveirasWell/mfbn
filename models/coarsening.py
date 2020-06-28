@@ -40,11 +40,16 @@ from models.list_param import ListParam
 from models.similarity import Similarity
 
 
-
 def modified_starmap_async_legacy(function, kwargs):
     return function(**kwargs)
 
+
 def modified_starmap_async(args):
+    function = args[0]
+    return function(**args[1])
+
+
+def modified_starmap_pure_async(*args):
     function = args[0]
     return function(**args[1])
 
@@ -62,6 +67,10 @@ class Coarsening:
         if 'sparkContext' in kwargs:
             self.sparkContext = kwargs['sparkContext']
             del kwargs['sparkContext']
+
+        if 'spark' in kwargs:
+            self.spark = kwargs['spark']
+            del kwargs['spark']
 
         self.__dict__.update(prop_defaults)
         self.__dict__.update(kwargs)
@@ -147,9 +156,8 @@ class Coarsening:
             sys.exit(1)
 
         # Matching method validation
-        valid_matching = ['rgmb', 'gmb', 'mlpb', 'hem', 'lem', 'rm']
+        valid_matching = ['rgmb', 'gmb', 'mlpb', 'hem', 'lem', 'rm', 'pure_gmb']
         for index, matching in enumerate(self.matching):
-            matching = matching.lower()
             if matching not in valid_matching:
                 print('Matching ' + matching + ' method is invalid.')
                 sys.exit(1)
@@ -212,6 +220,7 @@ class Coarsening:
             contract = False
 
             args = []
+            spark_args = []
             for layer in range(graph['layers']):
                 do_matching = True
                 if self.global_min_vertices[layer] is None and level[layer] >= self.max_levels[layer]:
@@ -245,11 +254,16 @@ class Coarsening:
                     if self.matching[layer] in ['hem', 'lem', 'rm']:
                         one_mode_graph = graph.weighted_one_mode_projection(graph['vertices_by_type'][layer])
                         matching_function = getattr(one_mode_graph, self.matching[layer])
+                        matching_function_spark = getattr(graph, 'pure_gmb' if self.spark is True and self.matching[
+                            layer] == 'gmb' else self.matching[layer])
                     else:
+                        matching_function_spark = getattr(graph, 'pure_gmb' if self.spark is True and self.matching[
+                            layer] == 'gmb' else self.matching[layer])
                         matching_function = getattr(graph, self.matching[layer])
 
                     # Create a args for the engine multiprocessing.pool
                     args.append([(matching_function, kwargs)])
+                    spark_args.append([(matching_function_spark, kwargs)])
 
             if contract:
 
@@ -272,13 +286,16 @@ class Coarsening:
                 accum_list = self.sparkContext.accumulator([*matching], ListParam())
 
                 def runMatching(arg):
-                    result = modified_starmap_async(arg[0])
+                    newArgs = list(arg[0])
+                    newArgs[1]['graph'] = graph
+                    result = modified_starmap_pure_async(*tuple(arg[0]))
                     vertices = numpy.where(result > -1)[0]
                     accum_list.add((result, vertices))
 
-                self.sparkContext.parallelize(args).foreach(
-                    lambda argA: runMatching(argA)
-                )
+                if self.spark:
+                    self.sparkContext.parallelize(spark_args).foreach(
+                        lambda argA: runMatching(argA)
+                    )
 
                 for arg in args:
                     result = modified_starmap_async(arg[0])
@@ -294,9 +311,10 @@ class Coarsening:
                 pool.close()
                 pool.join()
 
-                for i in matching:
-                    if not accum_list.value[i] == matching[i] and accum_list.value[i] == matching2[i]:
-                        raise Exception("Not Equivalent")
+                if self.spark:
+                    for i in matching:
+                        if not accum_list.value[i] == matching[i] and accum_list.value[i] == matching2[i]:
+                            raise Exception("Not Equivalent")
 
                 # Contract current graph using the matching
                 coarsened_graph = graph.contract(matching2)

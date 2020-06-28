@@ -118,7 +118,8 @@ def main(sparkContextParam):
             matching=options.matching, similarity=options.similarity, itr=options.itr,
             upper_bound=options.upper_bound, global_min_vertices=options.global_min_vertices,
             tolerance=options.tolerance, reverse=options.reverse, seed_priority=options.seed_priority,
-            threads=options.threads
+            threads=options.threads,
+            spark=options.spark
         )
         print(source_graph['vertices'], source_graph.ecount())
         coarsening = Coarsening(source_graph, **kwargs)

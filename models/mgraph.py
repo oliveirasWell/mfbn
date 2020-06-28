@@ -224,6 +224,63 @@ class MGraph(Graph):
 
         return matching
 
+    @staticmethod
+    def pure_gmb(graph, sparkContext=None, vertices=None, reduction_factor=0.5, reverse=True):
+        """
+        Matches are restricted between vertices that are not adjacent
+        but are only allowed to match with neighbors of its neighbors,
+        i.e. two-hopes neighborhood
+        """
+
+        matching = numpy.array([-1] * graph.vcount())
+        matching[vertices] = vertices
+
+        # Search two-hopes neighborhood for each vertex in selected layer
+        dict_edges = dict()
+        visited = [0] * graph.vcount()
+
+        # here we are going to use map
+        # sparkContext.parallelize(vertices)
+        #
+        # vertices.map(
+        #  lambda: a : a + 10
+        # )
+
+        for vertex in vertices:
+            neighborhood = graph.neighborhood(vertices=vertex, order=2)
+            twohops = neighborhood[(len(graph['adjlist'][vertex]) + 1):]
+            for twohop in twohops:
+                if visited[twohop] == 1:
+                    continue
+                dict_edges[(vertex, twohop)] = graph['similarity'](vertex, twohop)
+            visited[vertex] = 1
+
+        # Select promising matches or pair of vertices
+        visited = [0] * graph.vcount()
+        edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
+        merge_count = int(reduction_factor * len(vertices))
+
+        # rdd.read(dict_edges)
+        # dict_edges.sortByKey
+        #
+        #
+        # dict_edges
+        #
+
+        for edge, value in edges:
+            vertex = edge[0]
+            neighbor = edge[1]
+            if (visited[vertex] != 1) and (visited[neighbor] != 1):
+                matching[neighbor] = vertex
+                matching[vertex] = vertex
+                visited[neighbor] = 1
+                visited[vertex] = 1
+                merge_count -= 1
+            if merge_count == 0:
+                break
+
+        return matching
+
     def rgmb(self,
              matching,
              sparkContext=None,
