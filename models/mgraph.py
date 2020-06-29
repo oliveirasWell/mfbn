@@ -225,19 +225,20 @@ class MGraph(Graph):
         return matching
 
     @staticmethod
-    def pure_gmb(graph, sparkContext=None, vertices=None, reduction_factor=0.5, reverse=True):
+    def pure_gmb(graph, vertices=None, reduction_factor=0.5, reverse=True):
         """
         Matches are restricted between vertices that are not adjacent
         but are only allowed to match with neighbors of its neighbors,
         i.e. two-hopes neighborhood
         """
 
-        matching = numpy.array([-1] * graph.vcount())
+        vcount = graph.vcount()
+        matching = numpy.array([-1] * vcount)
         matching[vertices] = vertices
 
         # Search two-hopes neighborhood for each vertex in selected layer
         dict_edges = dict()
-        visited = [0] * graph.vcount()
+        visited = [0] * vcount
 
         # here we are going to use map
         # sparkContext.parallelize(vertices)
@@ -256,7 +257,7 @@ class MGraph(Graph):
             visited[vertex] = 1
 
         # Select promising matches or pair of vertices
-        visited = [0] * graph.vcount()
+        visited = [0] * vcount
         edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
         merge_count = int(reduction_factor * len(vertices))
 

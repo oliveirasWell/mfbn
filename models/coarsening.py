@@ -32,6 +32,7 @@ __docformat__ = 'markdown en'
 __version__ = '0.1'
 __date__ = '2019-08-08'
 
+import operator
 import sys
 import numpy
 import multiprocessing as mp
@@ -221,7 +222,9 @@ class Coarsening:
 
             args = []
             spark_args = []
+            count = 0
             for layer in range(graph['layers']):
+                count = count + 1
                 do_matching = True
                 if self.global_min_vertices[layer] is None and level[layer] >= self.max_levels[layer]:
                     do_matching = False
@@ -237,8 +240,6 @@ class Coarsening:
 
                     kwargs = dict(reduction_factor=self.reduction_factor[layer])
 
-                    # if self.matching[layer] in ['gmb']:
-                    #     kwargs['sparkContext'] = self.sparkContext
                     if self.matching[layer] in ['mlpb', 'gmb', 'rgmb']:
                         kwargs['vertices'] = graph['vertices_by_type'][layer]
                         kwargs['reverse'] = self.reverse[layer]
@@ -263,7 +264,7 @@ class Coarsening:
 
                     # Create a args for the engine multiprocessing.pool
                     args.append([(matching_function, kwargs)])
-                    spark_args.append([(matching_function_spark, kwargs)])
+                    spark_args.append([(matching_function_spark, kwargs, count)])
 
             if contract:
 
@@ -285,17 +286,71 @@ class Coarsening:
 
                 accum_list = self.sparkContext.accumulator([*matching], ListParam())
 
-                def runMatching(arg):
-                    newArgs = list(arg[0])
-                    newArgs[1]['graph'] = graph
-                    result = modified_starmap_pure_async(*tuple(arg[0]))
-                    vertices = numpy.where(result > -1)[0]
-                    accum_list.add((result, vertices))
+                def runMatching(result):
+                    vertices2 = numpy.where(result > -1)[0]
+                    accum_list.add((result, vertices2))
+                    return 1
+
+                # TODO Document
+                def gmb_pure(args):
+                    arg = args[0]
+                    arg1 = arg[1]
+
+                    vertices = arg1['vertices'] if arg1['vertices'] is not None else None
+                    reverse = arg1['reverse'] if arg1['reverse'] is not None else True
+
+                    vcount = graph.vcount()
+
+                    matching = numpy.array([-1] * vcount)
+                    matching[vertices] = vertices
+
+                    # Search two-hopes neighborhood for each vertex in selected layer
+                    dict_edges = dict()
+                    visited = [0] * vcount
+
+                    for vertex in vertices:
+                        neighborhood = graph.neighborhood(vertices=vertex, order=2)
+                        twohops = neighborhood[(len(graph['adjlist'][vertex]) + 1):]
+                        for twohop in twohops:
+                            if visited[twohop] == 1:
+                                continue
+                            dict_edges[(vertex, twohop)] = graph['similarity'](vertex, twohop)
+                        visited[vertex] = 1
+
+                    edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
+                    return {'edges': edges, 'vcount': vcount, 'args': args, 'layer': arg[2]}
+
+                # TODO Document
+                def gmb_matching_pure(edges, vcount, args, layer):
+                    arg = args[0]
+                    arg1 = arg[1]
+
+                    vertices = arg1['vertices'] if arg1['vertices'] is not None else None
+                    reduction_factor = arg1['reduction_factor'] if arg1['reduction_factor'] is not None else 0.5
+
+                    # Select promising matches or pair of vertices
+                    visited = [0] * vcount
+                    merge_count = int(reduction_factor * len(vertices))
+
+                    for edge, value in edges:
+                        vertex = edge[0]
+                        neighbor = edge[1]
+                        if (visited[vertex] != 1) and (visited[neighbor] != 1):
+                            matching[neighbor] = vertex
+                            matching[vertex] = vertex
+                            visited[neighbor] = 1
+                            visited[vertex] = 1
+                            merge_count -= 1
+                        if merge_count == 0:
+                            break
+
+                    return matching
 
                 if self.spark:
-                    self.sparkContext.parallelize(spark_args).foreach(
-                        lambda argA: runMatching(argA)
-                    )
+                    self.sparkContext.parallelize(spark_args) \
+                        .map(lambda argA: gmb_pure(argA)) \
+                        .map(lambda dic: gmb_matching_pure(**dic)) \
+                        .foreach(lambda result: runMatching(result))
 
                 for arg in args:
                     result = modified_starmap_async(arg[0])
@@ -312,6 +367,8 @@ class Coarsening:
                 pool.join()
 
                 if self.spark:
+                    print('-------------------------------accum_list.value-----------------------------------')
+                    print(accum_list.value)
                     for i in matching:
                         if not accum_list.value[i] == matching[i] and accum_list.value[i] == matching2[i]:
                             raise Exception("Not Equivalent")
