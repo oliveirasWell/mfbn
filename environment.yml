@@ -71,5 +71,5 @@ dependencies:
   - xz=5.2.4=h14c3975_4
   - yaml=0.1.7=h96e3832_1
   - zlib=1.2.11=h7b6447c_3
-prefix: /home/wise/anaconda3/envs/mlpb
+prefix: /home/oliveiraswell/bin/anaconda3/envs/mlpb
 

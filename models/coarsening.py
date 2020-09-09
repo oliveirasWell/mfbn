@@ -32,13 +32,21 @@ __docformat__ = 'markdown en'
 __version__ = '0.1'
 __date__ = '2019-08-08'
 
-import operator
 import sys
-import numpy
 import multiprocessing as mp
 
+import numpy
+
+from models.spark.refine_args_func import refine_args_func
+from models.spark.gmb_pure_map_reduced import gmb_pure_map_reduced
+from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_sort_reduce_by_similarity
 from models.list_param import ListParam
+from models.mgraph import MGraph
 from models.similarity import Similarity
+from models.spark.gmb_matching_pure import gmb_matching_pure
+from models.spark.contract_pure import contract_pure
+from models.spark.sum_matching_array import sum_matching_array
+from models.spark.gmb_pure import gmb_pure_flat, gmb_pure_similarity_flat_map
 
 
 def modified_starmap_async_legacy(function, kwargs):
@@ -57,7 +65,7 @@ def modified_starmap_pure_async(*args):
 
 class Coarsening:
 
-    def __init__(self, source_graph, **kwargs):
+    def __init__(self, source_graph: MGraph, **kwargs):
 
         prop_defaults = {
             'reduction_factor': None, 'max_levels': None, 'matching': None,
@@ -157,8 +165,9 @@ class Coarsening:
             sys.exit(1)
 
         # Matching method validation
-        valid_matching = ['rgmb', 'gmb', 'mlpb', 'hem', 'lem', 'rm', 'pure_gmb']
+        valid_matching = ['rgmb', 'gmb', 'mlpb', 'hem', 'lem', 'rm']
         for index, matching in enumerate(self.matching):
+            matching = matching.lower()
             if matching not in valid_matching:
                 print('Matching ' + matching + ' method is invalid.')
                 sys.exit(1)
@@ -215,6 +224,7 @@ class Coarsening:
     def run(self):
 
         graph = self.source_graph.copy()
+
         while True:
 
             level = graph['level']
@@ -222,9 +232,10 @@ class Coarsening:
 
             args = []
             spark_args = []
-            count = 0
+            broadcast_kwargs = []
+            current_layer = 0
             for layer in range(graph['layers']):
-                count = count + 1
+                current_layer = current_layer + 1
                 do_matching = True
                 if self.global_min_vertices[layer] is None and level[layer] >= self.max_levels[layer]:
                     do_matching = False
@@ -255,6 +266,7 @@ class Coarsening:
                     if self.matching[layer] in ['hem', 'lem', 'rm']:
                         one_mode_graph = graph.weighted_one_mode_projection(graph['vertices_by_type'][layer])
                         matching_function = getattr(one_mode_graph, self.matching[layer])
+                        # TODO: This could be removed because gmb_pure is hardcoded on the spark approach
                         matching_function_spark = getattr(graph, 'pure_gmb' if self.spark is True and self.matching[
                             layer] == 'gmb' else self.matching[layer])
                     else:
@@ -264,117 +276,34 @@ class Coarsening:
 
                     # Create a args for the engine multiprocessing.pool
                     args.append([(matching_function, kwargs)])
-                    spark_args.append([(matching_function_spark, kwargs, count)])
+                    spark_args.append([(matching_function_spark, kwargs, current_layer)])
+                    broadcast_kwargs.append(kwargs)
 
             if contract:
-
-                pool = mp.Pool(processes=self.threads)
-                processes = []
-                for arg in args:
-                    processes.append(pool.starmap_async(modified_starmap_async_legacy, arg))
-
-                # Merge chunked solutions
                 matching = numpy.arange(graph.vcount())
-                matching2 = numpy.arange(graph.vcount())
-                print('matching')
-                print(len(matching))
-                print(matching)
-
-                # print('------------------[*matching]------------------')
-                # print([*matching])
-                # print('------------------[*matching]------------------')
-
                 accum_list = self.sparkContext.accumulator([*matching], ListParam())
-
-                def runMatching(result):
-                    vertices2 = numpy.where(result > -1)[0]
-                    accum_list.add((result, vertices2))
-                    return 1
-
-                # TODO Document
-                def gmb_pure(args):
-                    arg = args[0]
-                    arg1 = arg[1]
-
-                    vertices = arg1['vertices'] if arg1['vertices'] is not None else None
-                    reverse = arg1['reverse'] if arg1['reverse'] is not None else True
-
-                    vcount = graph.vcount()
-
-                    matching = numpy.array([-1] * vcount)
-                    matching[vertices] = vertices
-
-                    # Search two-hopes neighborhood for each vertex in selected layer
-                    dict_edges = dict()
-                    visited = [0] * vcount
-
-                    for vertex in vertices:
-                        neighborhood = graph.neighborhood(vertices=vertex, order=2)
-                        twohops = neighborhood[(len(graph['adjlist'][vertex]) + 1):]
-                        for twohop in twohops:
-                            if visited[twohop] == 1:
-                                continue
-                            dict_edges[(vertex, twohop)] = graph['similarity'](vertex, twohop)
-                        visited[vertex] = 1
-
-                    edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
-                    return {'edges': edges, 'vcount': vcount, 'args': args, 'layer': arg[2]}
-
-                # TODO Document
-                def gmb_matching_pure(edges, vcount, args, layer):
-                    arg = args[0]
-                    arg1 = arg[1]
-
-                    vertices = arg1['vertices'] if arg1['vertices'] is not None else None
-                    reduction_factor = arg1['reduction_factor'] if arg1['reduction_factor'] is not None else 0.5
-
-                    # Select promising matches or pair of vertices
-                    visited = [0] * vcount
-                    merge_count = int(reduction_factor * len(vertices))
-
-                    for edge, value in edges:
-                        vertex = edge[0]
-                        neighbor = edge[1]
-                        if (visited[vertex] != 1) and (visited[neighbor] != 1):
-                            matching[neighbor] = vertex
-                            matching[vertex] = vertex
-                            visited[neighbor] = 1
-                            visited[vertex] = 1
-                            merge_count -= 1
-                        if merge_count == 0:
-                            break
-
-                    return matching
+                refined_arg = list(map(lambda a: refine_args_func(a), broadcast_kwargs))
 
                 if self.spark:
-                    self.sparkContext.parallelize(spark_args) \
-                        .map(lambda argA: gmb_pure(argA)) \
-                        .map(lambda dic: gmb_matching_pure(**dic)) \
-                        .foreach(lambda result: runMatching(result))
+                    collected = self.sparkContext.parallelize(spark_args) \
+                        .flatMap(lambda argA: gmb_pure_flat(argA, graph)) \
+                        .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph)) \
+                        .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
+                        .map(lambda a: gmb_pure_map_reduced(a)) \
+                        .groupByKey() \
+                        .map(lambda x: (x[0], {(item[0], item[1]): item for item in list(x[1])})) \
+                        .sortByKey() \
+                        .collect()
 
-                for arg in args:
-                    result = modified_starmap_async(arg[0])
-                    vertices = numpy.where(result > -1)[0]
-                    matching[vertices] = result[vertices]
+                    for item in collected:
+                        item_list = item[1]
+                        vertices_matched = gmb_matching_pure(edges=item_list,
+                                                             vcount=graph.vcount(),
+                                                             reduction_factor=refined_arg[item[0]-1]['reduction_factor'],
+                                                             vertices=broadcast_kwargs[item[0]-1]['vertices'])
+                        sum_matching_array(vertices_matched, accum_list)
 
-                for process in processes:
-                    result = process.get()[0]
-                    vertices = numpy.where(result > -1)[0]
-                    matching2[vertices] = result[vertices]
-
-                # Close processes
-                pool.close()
-                pool.join()
-
-                if self.spark:
-                    print('-------------------------------accum_list.value-----------------------------------')
-                    print(accum_list.value)
-                    for i in matching:
-                        if not accum_list.value[i] == matching[i] and accum_list.value[i] == matching2[i]:
-                            raise Exception("Not Equivalent")
-
-                # Contract current graph using the matching
-                coarsened_graph = graph.contract(matching2)
+                coarsened_graph = contract_pure(input_graph=graph, matching=accum_list.value)
                 coarsened_graph['level'] = level
 
                 if coarsened_graph.vcount() == graph.vcount():

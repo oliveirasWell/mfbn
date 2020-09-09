@@ -64,7 +64,8 @@ import os
 import inspect
 import json
 
-sys.path.insert(0, 'models.zip')
+# TODO: I thing this could be remove in the future, but now I will keep it code snippet for safety
+# sys.path.insert(0, 'models.zip')
 from models.mgraph import MGraph
 from models.coarsening import Coarsening
 import models.args as args
@@ -213,6 +214,10 @@ def main(sparkContextParam):
 
 
 if __name__ == "__main__":
-    conf = SparkConf().setAppName("app")
+    conf = SparkConf().setAppName("mfbn") #\
+        # .set("spark.executor.instances", "1") \
+        # .set("spark.executor.cores", "1")
+
     sc = SparkContext(conf=conf)
-    sys.exit(main(sparkContextParam=sc))
+    __status = main(sparkContextParam=sc)
+    sys.exit(__status)
