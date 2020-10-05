@@ -291,7 +291,7 @@ class Coarsening:
                         .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
                         .map(lambda a: gmb_pure_map_reduced(a)) \
                         .groupByKey() \
-                        .map(lambda x: (x[0], {(item[0], item[1]): item for item in list(x[1])})) \
+                        .map(lambda x: (x[0], [(item[0], item[1]) for item in list(x[1])])) \
                         .sortByKey() \
                         .collect()
 
@@ -299,8 +299,9 @@ class Coarsening:
                         item_list = item[1]
                         vertices_matched = gmb_matching_pure(edges=item_list,
                                                              vcount=graph.vcount(),
-                                                             reduction_factor=refined_arg[item[0]-1]['reduction_factor'],
-                                                             vertices=broadcast_kwargs[item[0]-1]['vertices'])
+                                                             reduction_factor=refined_arg[item[0] - 1][
+                                                                 'reduction_factor'],
+                                                             vertices=broadcast_kwargs[item[0] - 1]['vertices'])
                         sum_matching_array(vertices_matched, accum_list)
 
                 coarsened_graph = contract_pure(input_graph=graph, matching=accum_list.value)

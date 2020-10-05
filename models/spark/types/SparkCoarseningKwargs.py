@@ -1,5 +1,5 @@
 class SparkCoarseningKwargs:
-    def __init__(self, reduction_factor, vertices=None, reverse=None, seed_priority=None, upper_bound=None, n=None,
+    def __init__(self, reduction_factor: int, vertices=None, reverse=None, seed_priority=None, upper_bound=None, n=None,
                  global_min_vertices=None,
                  tolerance=None, itr=None):
         self.reduction_factor = reduction_factor

@@ -1,10 +1,8 @@
 # TODO Document
 import numpy
 
-from numpy.core.multiarray import ndarray
 
-
-def gmb_matching_pure(edges: dict, vcount: int, reduction_factor, vertices):
+def gmb_matching_pure(edges: list, vcount: int, reduction_factor: int, vertices):
     merge_count = int(reduction_factor * len(vertices))
     matching = numpy.array([-1] * vcount)
     matching[vertices] = vertices

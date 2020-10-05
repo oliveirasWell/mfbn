@@ -1,6 +1,6 @@
 from models.spark.types.SparkCoarseningKwargs import SparkCoarseningKwargs
 
-from types import *
+from types import FunctionType
 
 
 class SparkCoarseningArgs:
