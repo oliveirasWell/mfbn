@@ -37,14 +37,17 @@ import multiprocessing as mp
 
 import numpy
 
+from models.spark.comb_op import comb_op
 from models.spark.refine_args_func import refine_args_func
 from models.spark.gmb_pure_map_reduced import gmb_pure_map_reduced
 from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_sort_reduce_by_similarity
 from models.list_param import ListParam
 from models.mgraph import MGraph
 from models.similarity import Similarity
+
 from models.spark.gmb_matching_pure import gmb_matching_pure
 from models.spark.contract_pure import contract_pure
+from models.spark.seq_op import seq_op
 from models.spark.sum_matching_array import sum_matching_array
 from models.spark.gmb_pure import gmb_pure_flat, gmb_pure_similarity_flat_map
 
@@ -228,6 +231,12 @@ class Coarsening:
         while True:
 
             level = graph['level']
+            print("------------------------------------------------------")
+            print("level: ")
+            print(level)
+            print(graph)
+            print("------------------------------------------------------")
+
             contract = False
 
             args = []
@@ -238,11 +247,20 @@ class Coarsening:
                 current_layer = current_layer + 1
                 do_matching = True
                 if self.global_min_vertices[layer] is None and level[layer] >= self.max_levels[layer]:
+                    print("------------------")
+                    print("max")
+                    print(self.global_min_vertices[layer])
+                    print(level[layer])
+                    print(self.max_levels[layer])
+                    print("------------------")
                     do_matching = False
                 elif self.global_min_vertices[layer] and graph['vertices'][layer] <= self.global_min_vertices[layer]:
+                    print("min")
                     do_matching = False
 
                 if do_matching:
+                    print("do_matching")
+                    print(do_matching)
 
                     contract = True
                     level[layer] += 1
@@ -279,39 +297,119 @@ class Coarsening:
                     spark_args.append([(matching_function_spark, kwargs, current_layer)])
                     broadcast_kwargs.append(kwargs)
 
+            graph_similarity = self.sparkContext.broadcast(graph['similarity'])
+
+            def flat_map(arrays, function) -> list:
+                mapped_array = []
+                for array in arrays:
+                    for item in function(array):
+                        mapped_array.append(item)
+                return mapped_array
+
             if contract:
-                matching = numpy.arange(graph.vcount())
+                print("contract")
+                print(contract)
+
+                vertices = flat_map(broadcast_kwargs, lambda arg: arg["vertices"])
+                zero_val = numpy.array([-1] * graph.vcount(), dtype=object)
+                matching = numpy.array([-1] * graph.vcount())
+                matching[vertices] = vertices
                 accum_list = self.sparkContext.accumulator([*matching], ListParam())
-                refined_arg = list(map(lambda a: refine_args_func(a), broadcast_kwargs))
+                merge_count = int(broadcast_kwargs[0]["reduction_factor"] * len(vertices))
+
+                def runMatching(item):
+                    print('item')
+                    vertex, neigh, similarity = item[1]
+                    print(vertex)
+                    print(neigh)
+
+                    accum_list.add((vertex, neigh))
+
+                flat_map_items = lambda layer: list(
+                    map(lambda item: (layer[0], -1 if item == -1 else (item[0], item[1], item[2])), layer[1])
+                )
+
+                final_matching = []
+
+                broadcastGraph = self.sparkContext.broadcast(graph)
 
                 if self.spark:
-                    collected = self.sparkContext.parallelize(spark_args) \
-                        .flatMap(lambda argA: gmb_pure_flat(argA, graph)) \
-                        .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph)) \
+                    edges = self.sparkContext.parallelize(spark_args) \
+                        .flatMap(lambda argA: gmb_pure_flat(argA, broadcastGraph)) \
+                        .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph_similarity)) \
                         .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
-                        .map(lambda a: gmb_pure_map_reduced(a)) \
-                        .groupByKey() \
-                        .map(lambda x: (x[0], [(item[0], item[1]) for item in list(x[1])])) \
-                        .sortByKey() \
+                        .map(gmb_pure_map_reduced) \
+                        .map(lambda x: (x[0], (x[1][0][0], x[1][0][1], x[1][1]))) \
+                        .aggregateByKey(zero_val, seq_op, comb_op) \
+                        .flatMap(flat_map_items) \
+                        .distinct() \
+                        .filter(lambda item: item[1] != -1) \
                         .collect()
+                    # takeOrdered
+                    # ((74, 106), {'current_layer': 1, 'similarity': 1.0}) -> (current_layer, ((74, 106)),  similarity)
 
-                    for item in collected:
-                        item_list = item[1]
-                        vertices_matched = gmb_matching_pure(edges=item_list,
-                                                             vcount=graph.vcount(),
-                                                             reduction_factor=refined_arg[item[0] - 1][
-                                                                 'reduction_factor'],
-                                                             vertices=broadcast_kwargs[item[0] - 1]['vertices'])
-                        sum_matching_array(vertices_matched, accum_list)
+                    # FIXME pass this to
+                    final_matching = numpy.arange(graph.vcount())
+                    result = numpy.array([-1] * graph.vcount())
+                    result[vertices] = vertices
 
-                coarsened_graph = contract_pure(input_graph=graph, matching=accum_list.value)
+                    sorted_edges = sorted(edges, key=lambda item: item[1][2], reverse=True)
+                    visited = [0] * graph.vcount()
+
+                    print("merge_count")
+                    print("merge_count1")
+                    print(merge_count)
+                    print("merge_count2222")
+                    print(len(edges))
+                    print("1merge_count")
+
+                    # for i in sorted_edges[:merge_count]:
+                    for i in sorted_edges:
+                        vertex, neigh, similarity = i[1]
+                        if (visited[vertex] != 1) and (visited[neigh] != 1):
+                            result[neigh] = result[vertex]
+                            visited[neigh] = 1
+                            visited[vertex] = 1
+                            merge_count -= 1
+                        if merge_count == 0:
+                            break
+
+                    vertices = numpy.where(result > -1)[0]
+                    final_matching[vertices] = result[vertices]
+
+                    print("1==================================================")
+                    print("==================================================")
+                    print(sorted_edges)
+                    print("==================================================")
+                    # for i in final_matching:
+                    #     print(i)
+                    print("==================================================")
+                    print("==================================================1")
+
+                # line aggregateByKey -> gets element (neight, vertex) with more similarity and remove other neight, vertex from vertex
+
+                coarsened_graph = contract_pure(input_graph=graph, matching=final_matching)
                 coarsened_graph['level'] = level
 
+                print("vcount")
+                print(coarsened_graph.vcount())
+                print(graph.vcount())
+
                 if coarsened_graph.vcount() == graph.vcount():
+                    print("break:vcount")
                     break
 
                 self.hierarchy_graphs.append(coarsened_graph)
                 self.hierarchy_levels.append(level[:])
                 graph = coarsened_graph
+
+                print('------------------------------------------graph------------------------------------------')
+                print(graph)
+                print('------------------------------------------graph------------------------------------------')
+                # break
+
             else:
+                # contract  === false
+                # do_matching
+                print("break:else")
                 break

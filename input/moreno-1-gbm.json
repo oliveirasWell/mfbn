@@ -8,8 +8,8 @@
     0.5
   ],
   "max_levels": [
-    7,
-    6
+		1,
+		1
   ],
   "global_min_vertices": [
 		450,
@@ -20,8 +20,8 @@
     "gmb"
   ],
   "similarity": [
-    "jaccard",
-    "jaccard"
+		"weighted_common_neighbors",
+		"weighted_common_neighbors"
   ],
   "seed_priority": [
     "degree",

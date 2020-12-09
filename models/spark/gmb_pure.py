@@ -7,7 +7,8 @@ from models.mgraph import MGraph
 from models.spark.types.SparkCoarseningArgs import SparkCoarseningArgs
 
 
-def gmb_pure_flat(args, graph: MGraph) -> List:
+def gmb_pure_flat(args, broadcastGraph) -> List:
+    graph: MGraph = broadcastGraph.value
     spark_args: SparkCoarseningArgs = SparkCoarseningArgs.from_array(args[0])
     vertices = spark_args.kwargs.vertices
     return list(map(lambda v: map_vertex_neighborhood(v, graph, spark_args.current_layer), vertices))
@@ -21,16 +22,34 @@ def map_vertex_neighborhood(vertex, graph: MGraph, current_layer) -> Dict:
 
 #  args, graph: MGraph
 # {'vertex': vertex, 'neighborhood': neighborhood, 'twohops': twohops, 'args': args}
-def gmb_pure_similarity_flat_map(args, graph: MGraph):
+def gmb_pure_similarity_flat_map(args, graph_similarity_brodcast):
+    # graph: MGraph = broadcastGraph.value
     twohops = args['twohops']
     vertex = args['vertex']
     current_layer = args['current_layer']
-    return list(
+
+    # graph_similarity = graph['similarity']
+    graph_similarity = graph_similarity_brodcast.value
+
+    l = list(
         map(
-            lambda twohop: (tuple(sorted((vertex, twohop))), { 'current_layer': current_layer, 'similarity': graph['similarity'](vertex, twohop)}),
+            lambda twohop: (tuple(sorted((vertex, twohop))),  # 169 181
+                            # lambda twohop: (tuple((vertex, twohop)),  # 152 161  # 169 181
+                            {'current_layer': current_layer,
+                             'similarity': graph_similarity(vertex, twohop)}),
             twohops
         )
     )
+
+    if 781 == vertex:
+        print("vertex ------- ")
+        print(vertex)
+        print(l)
+        print("vertex ------- ")
+
+    return l
+
+
 # edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
 # return {'edges': edges, 'args': args, 'layer': current_layer}
 

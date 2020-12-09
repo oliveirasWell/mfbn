@@ -11,7 +11,9 @@ def contract_pure(input_graph: MGraph, matching: numpy.ndarray):
     # Contract vertices: Referencing the original graph of the coarse graph
 
     print("matching of iteration")
-    print(matching)
+    print(len(matching))
+    print(len(list(set(matching))))
+    print([i for i in matching])
 
     types = []
     weights = []

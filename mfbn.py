@@ -219,5 +219,6 @@ if __name__ == "__main__":
         # .set("spark.executor.cores", "1")
 
     sc = SparkContext(conf=conf)
+    sc.setLogLevel("ERROR")
     __status = main(sparkContextParam=sc)
     sys.exit(__status)

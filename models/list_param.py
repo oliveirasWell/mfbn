@@ -6,8 +6,12 @@ class ListParam(AccumulatorParam):
         return v
 
     def addInPlace(self, acc1, acc2):
-        results = acc2[0]
-        vertices = acc2[1]
+        print('acc1')
+        print(acc1)
+        print('acc2')
+        print(acc2)
+        vertex = acc2[0]
+        neigh = acc2[1]
 
         # print('vertices')
         # print(acc1)
@@ -15,8 +19,7 @@ class ListParam(AccumulatorParam):
         # print(vertices)
         # print('vertices')
 
-        if hasattr(vertices, "__len__"):
-            for vertex in vertices:
-                acc1[vertex] = results[vertex]
+        acc1[neigh] = vertex
+        acc1[vertex] = vertex
 
         return acc1

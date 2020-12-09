@@ -233,17 +233,18 @@ E.g., `show_timing` track (and show in bash) the execution time of each algorith
 
 > Anaconda create
 
-    $ conda create --name mfbn python=3.7.2
-    $ conda activate mfbn
-    $ conda install -c anaconda numpy
-    $ conda install -c conda-forge python-igraph
-    $ conda install -c anaconda pyyaml
-    $ conda install -c conda-forge pypdf2
-    $ conda install -c anaconda scipy
-    $ conda install -c anaconda networkx
-    $ conda install -c bioconda sharedmem 
-    $ conda install -c anaconda pyspark 
-
+     conda create --name mfbn python=3.7.2
+     conda activate mfbn
+     conda install -c anaconda numpy --yes
+     conda install -c conda-forge python-igraph  --yes
+     conda install -c anaconda pyyaml --yes
+     conda install -c conda-forge pypdf2 --yes
+     conda install -c anaconda scipy --yes
+     conda install -c anaconda networkx --yes
+     conda install -c bioconda sharedmem  --yes
+     conda install -c anaconda pyspark  --yes
+     conda install -c conda-forge python-igraph --yes
+     
 **Release History**
 
 - 0.1.0
