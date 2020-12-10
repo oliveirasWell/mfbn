@@ -1,8 +1,10 @@
 
 
-DEBUG = True
+DEBUG = False
 
 
 def debug_print(x):
-    if DEBUG:
-        print(x)
+    if not DEBUG:
+        return
+
+    print(x)

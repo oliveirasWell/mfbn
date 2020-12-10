@@ -52,7 +52,7 @@ from models.spark.contract_pure import contract_pure
 from models.spark.seq_op import seq_op
 from models.spark.sort_by_similarity import sort_by_similarity
 from models.spark.sum_matching_array import sum_matching_array
-from models.spark.gmb_pure import gmb_pure_flat, gmb_pure_similarity_flat_map
+from models.spark.gmb_pure import flat_map_two_layers_into_one_list_with_neighborhood, gmb_pure_similarity_flat_map
 from models.spark.utils import debug_print
 
 
@@ -322,7 +322,7 @@ class Coarsening:
 
                 if self.spark:
                     sorted_edges_by_layer = self.sparkContext.parallelize(spark_args) \
-                        .flatMap(lambda argA: gmb_pure_flat(argA, broadcastGraph)) \
+                        .flatMap(lambda argA: flat_map_two_layers_into_one_list_with_neighborhood(argA, broadcastGraph)) \
                         .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph_similarity)) \
                         .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
                         .map(gmb_pure_map_reduced) \
@@ -330,10 +330,6 @@ class Coarsening:
                         .sortBy(sort_by_similarity) \
                         .groupByKey() \
                         .collect()
-
-                    # debug_print("/=========edges=========")
-                    # debug_print([i for i in sorted_edges_by_layer])
-                    # debug_print("=========edges=========/")
 
                     for item in sorted_edges_by_layer:
                         item_list = item[1]
@@ -353,8 +349,6 @@ class Coarsening:
                         broadcast_kwargs_of_layer = broadcast_kwargs[layer_number]
 
                         merge_count = int(broadcast_kwargs_of_layer["reduction_factor"] * len(broadcast_kwargs_of_layer["vertices"]))
-                        print("merge_count1111111")
-                        print(merge_count)
 
                         item_list = item[1]
                         for i in item_list:

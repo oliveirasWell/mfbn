@@ -1,6 +1,7 @@
 import numpy
 
 from models.mgraph import MGraph
+from models.spark.utils import debug_print
 
 
 def contract_pure(input_graph: MGraph, matching: numpy.ndarray):
@@ -10,10 +11,10 @@ def contract_pure(input_graph: MGraph, matching: numpy.ndarray):
 
     # Contract vertices: Referencing the original graph of the coarse graph
 
-    print("matching of iteration")
-    print(len(matching))
-    print(len(list(set(matching))))
-    print([i for i in matching])
+    debug_print("matching of iteration")
+    debug_print(len(matching))
+    debug_print(len(list(set(matching))))
+    debug_print([i for i in matching])
 
     types = []
     weights = []

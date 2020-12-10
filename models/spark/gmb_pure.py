@@ -7,16 +7,19 @@ from models.mgraph import MGraph
 from models.spark.types.SparkCoarseningArgs import SparkCoarseningArgs
 
 
-def gmb_pure_flat(args, broadcastGraph) -> List:
+def flat_map_two_layers_into_one_list_with_neighborhood(args, broadcastGraph) -> List:
     graph: MGraph = broadcastGraph.value
     spark_args: SparkCoarseningArgs = SparkCoarseningArgs.from_array(args[0])
     vertices = spark_args.kwargs.vertices
-    return list(map(lambda v: map_vertex_neighborhood(v, graph, spark_args.current_layer), vertices))
+    return list(
+        map(lambda v: map_vertex_neighborhood(v, graph.neighborhood, graph['adjlist'], spark_args.current_layer),
+            vertices)
+    )
 
 
-def map_vertex_neighborhood(vertex, graph: MGraph, current_layer) -> Dict:
-    neighborhood = graph.neighborhood(vertices=vertex, order=2)
-    twohops = neighborhood[(len(graph['adjlist'][vertex]) + 1):]
+def map_vertex_neighborhood(vertex, neighborhood, adjlist, current_layer) -> Dict:
+    neighborhood = neighborhood(vertices=vertex, order=2)
+    twohops = neighborhood[(len(adjlist[vertex]) + 1):]
     return {'vertex': vertex, 'neighborhood': neighborhood, 'twohops': twohops, 'current_layer': current_layer}
 
 
@@ -29,25 +32,17 @@ def gmb_pure_similarity_flat_map(args, graph_similarity_brodcast):
     current_layer = args['current_layer']
 
     # graph_similarity = graph['similarity']
-    graph_similarity = graph_similarity_brodcast.value
+    graph_similarity_function = graph_similarity_brodcast.value
 
-    l = list(
+    return list(
         map(
             lambda twohop: (tuple(sorted((vertex, twohop))),  # 169 181
                             # lambda twohop: (tuple((vertex, twohop)),  # 152 161  # 169 181
                             {'current_layer': current_layer,
-                             'similarity': graph_similarity(vertex, twohop)}),
+                             'similarity': graph_similarity_function(vertex, twohop)}),
             twohops
         )
     )
-
-    if 781 == vertex:
-        print("vertex ------- ")
-        print(vertex)
-        print(l)
-        print("vertex ------- ")
-
-    return l
 
 
 # edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
