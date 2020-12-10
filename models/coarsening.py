@@ -38,6 +38,8 @@ import multiprocessing as mp
 import numpy
 
 from models.spark.comb_op import comb_op
+from models.spark.flat_map_agregated_items import flat_map_agregated_items
+from models.spark.map_by_key_to_agg import map_by_key_to_agg
 from models.spark.refine_args_func import refine_args_func
 from models.spark.gmb_pure_map_reduced import gmb_pure_map_reduced
 from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_sort_reduce_by_similarity
@@ -50,6 +52,7 @@ from models.spark.contract_pure import contract_pure
 from models.spark.seq_op import seq_op
 from models.spark.sum_matching_array import sum_matching_array
 from models.spark.gmb_pure import gmb_pure_flat, gmb_pure_similarity_flat_map
+from models.spark.utils import debug_print
 
 
 def modified_starmap_async_legacy(function, kwargs):
@@ -64,6 +67,7 @@ def modified_starmap_async(args):
 def modified_starmap_pure_async(*args):
     function = args[0]
     return function(**args[1])
+
 
 
 class Coarsening:
@@ -133,37 +137,37 @@ class Coarsening:
 
         # Parameters dimension validation
         if self.source_graph['layers'] != len(self.reduction_factor):
-            print('Number of layers and reduction_factor do not match.')
+            debug_print('Number of layers and reduction_factor do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.max_levels):
-            print('Number of layers and max_levels do not match.')
+            debug_print('Number of layers and max_levels do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.matching):
-            print('Number of layers and matching do not match.')
+            debug_print('Number of layers and matching do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.similarity):
-            print('Number of layers and similarity do not match.')
+            debug_print('Number of layers and similarity do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.itr):
-            print('Number of layers and itr do not match.')
+            debug_print('Number of layers and itr do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.upper_bound):
-            print('Number of layers and upper_bound do not match.')
+            debug_print('Number of layers and upper_bound do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.global_min_vertices):
-            print('Number of layers and global_min_vertices do not match.')
+            debug_print('Number of layers and global_min_vertices do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.tolerance):
-            print('Number of layers and tolerance do not match.')
+            debug_print('Number of layers and tolerance do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.seed_priority):
-            print('Number of layers and seed_priority do not match.')
+            debug_print('Number of layers and seed_priority do not match.')
             sys.exit(1)
         if self.source_graph['layers'] != len(self.reverse):
-            print('Number of layers and reverse do not match.')
+            debug_print('Number of layers and reverse do not match.')
             sys.exit(1)
         if self.threads > mp.cpu_count():
-            print('Number of defined threads (' + str(self.threads) + ') cannot be greater than the real number'
+            debug_print('Number of defined threads (' + str(self.threads) + ') cannot be greater than the real number'
                                                                       'of cors (' + str(mp.cpu_count()) + ').')
             sys.exit(1)
 
@@ -172,7 +176,7 @@ class Coarsening:
         for index, matching in enumerate(self.matching):
             matching = matching.lower()
             if matching not in valid_matching:
-                print('Matching ' + matching + ' method is invalid.')
+                debug_print('Matching ' + matching + ' method is invalid.')
                 sys.exit(1)
             self.matching[index] = matching
 
@@ -181,7 +185,7 @@ class Coarsening:
         for index, seed_priority in enumerate(self.seed_priority):
             seed_priority = seed_priority.lower()
             if seed_priority not in valid_seed_priority:
-                print('Seed priotiry ' + seed_priority + ' is invalid.')
+                debug_print('Seed priotiry ' + seed_priority + ' is invalid.')
                 sys.exit(1)
             self.seed_priority[index] = seed_priority
 
@@ -192,7 +196,7 @@ class Coarsening:
             elif reverse.lower() in ('no', 'false', 'f', 'n', '0'):
                 self.reverse[index] = False
             else:
-                print('Boolean value expected in -rv.')
+                debug_print('Boolean value expected in -rv.')
                 sys.exit(1)
 
         # Similarity measure validation
@@ -205,7 +209,7 @@ class Coarsening:
         for index, similarity in enumerate(self.similarity):
             similarity = similarity.lower()
             if similarity not in valid_similarity:
-                print('Similarity ' + similarity + ' misure is unvalid.')
+                debug_print('Similarity ' + similarity + ' misure is unvalid.')
                 sys.exit(1)
             self.similarity[index] = similarity
 
@@ -216,13 +220,13 @@ class Coarsening:
                     text = 'Matching method ' + self.matching[layer]
                     text += ' (setted in layer '
                     text += str(layer) + ') does not accept -gmv parameter.'
-                    print(text)
+                    debug_print(text)
                 if self.reduction_factor[layer] > 0.5:
                     self.reduction_factor[layer] = 0.5
                     text = 'Matching method ' + self.matching[layer]
                     text += ' (setted in layer '
                     text += str(layer) + ') does not accept -rf > 0.5.'
-                    print(text)
+                    debug_print(text)
 
     def run(self):
 
@@ -231,11 +235,11 @@ class Coarsening:
         while True:
 
             level = graph['level']
-            print("------------------------------------------------------")
-            print("level: ")
-            print(level)
-            print(graph)
-            print("------------------------------------------------------")
+            debug_print("------------------------------------------------------")
+            debug_print("level: ")
+            debug_print(level)
+            debug_print(graph)
+            debug_print("------------------------------------------------------")
 
             contract = False
 
@@ -247,20 +251,20 @@ class Coarsening:
                 current_layer = current_layer + 1
                 do_matching = True
                 if self.global_min_vertices[layer] is None and level[layer] >= self.max_levels[layer]:
-                    print("------------------")
-                    print("max")
-                    print(self.global_min_vertices[layer])
-                    print(level[layer])
-                    print(self.max_levels[layer])
-                    print("------------------")
+                    debug_print("------------------")
+                    debug_print("max")
+                    debug_print(self.global_min_vertices[layer])
+                    debug_print(level[layer])
+                    debug_print(self.max_levels[layer])
+                    debug_print("------------------")
                     do_matching = False
                 elif self.global_min_vertices[layer] and graph['vertices'][layer] <= self.global_min_vertices[layer]:
-                    print("min")
+                    debug_print("min")
                     do_matching = False
 
                 if do_matching:
-                    print("do_matching")
-                    print(do_matching)
+                    debug_print("do_matching")
+                    debug_print(do_matching)
 
                     contract = True
                     level[layer] += 1
@@ -307,8 +311,8 @@ class Coarsening:
                 return mapped_array
 
             if contract:
-                print("contract")
-                print(contract)
+                debug_print("contract")
+                debug_print(contract)
 
                 vertices = flat_map(broadcast_kwargs, lambda arg: arg["vertices"])
                 zero_val = numpy.array([-1] * graph.vcount(), dtype=object)
@@ -316,18 +320,6 @@ class Coarsening:
                 matching[vertices] = vertices
                 accum_list = self.sparkContext.accumulator([*matching], ListParam())
                 merge_count = int(broadcast_kwargs[0]["reduction_factor"] * len(vertices))
-
-                def runMatching(item):
-                    print('item')
-                    vertex, neigh, similarity = item[1]
-                    print(vertex)
-                    print(neigh)
-
-                    accum_list.add((vertex, neigh))
-
-                flat_map_agregated_items = lambda layer: list(
-                    map(lambda item: (layer[0], -1 if item == -1 else (item[0], item[1], item[2])), layer[1])
-                )
 
                 final_matching = []
 
@@ -339,16 +331,14 @@ class Coarsening:
                         .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph_similarity)) \
                         .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
                         .map(gmb_pure_map_reduced) \
-                        .map(lambda x: (x[0], (x[1][0][0], x[1][0][1], x[1][1]))) \
+                        .map(map_by_key_to_agg) \
                         .aggregateByKey(zero_val, seq_op, comb_op) \
                         .flatMap(flat_map_agregated_items) \
                         .distinct() \
                         .filter(lambda item: item[1] != -1) \
                         .collect()
-                    # takeOrdered
-                    # ((74, 106), {'current_layer': 1, 'similarity': 1.0}) -> (current_layer, ((74, 106)),  similarity)
 
-                    # FIXME pass this to
+                    # FIXME pass this to a new function
                     final_matching = numpy.arange(graph.vcount())
                     result = numpy.array([-1] * graph.vcount())
                     result[vertices] = vertices
@@ -356,14 +346,6 @@ class Coarsening:
                     sorted_edges = sorted(edges, key=lambda item: item[1][2], reverse=True)
                     visited = [0] * graph.vcount()
 
-                    print("merge_count")
-                    print("merge_count1")
-                    print(merge_count)
-                    print("merge_count2222")
-                    print(len(edges))
-                    print("1merge_count")
-
-                    # for i in sorted_edges[:merge_count]:
                     for i in sorted_edges:
                         vertex, neigh, similarity = i[1]
                         if (visited[vertex] != 1) and (visited[neigh] != 1):
@@ -377,39 +359,34 @@ class Coarsening:
                     vertices = numpy.where(result > -1)[0]
                     final_matching[vertices] = result[vertices]
 
-                    print("1==================================================")
-                    print("==================================================")
-                    print(sorted_edges)
-                    print("==================================================")
-                    # for i in final_matching:
-                    #     print(i)
-                    print("==================================================")
-                    print("==================================================1")
+                    debug_print("1==================================================")
+                    debug_print(sorted_edges)
+                    debug_print("==================================================1")
 
                 # line aggregateByKey -> gets element (neight, vertex) with more similarity and remove other neight, vertex from vertex
 
                 coarsened_graph = contract_pure(input_graph=graph, matching=final_matching)
                 coarsened_graph['level'] = level
 
-                print("vcount")
-                print(coarsened_graph.vcount())
-                print(graph.vcount())
+                debug_print("vcount")
+                debug_print(coarsened_graph.vcount())
+                debug_print(graph.vcount())
 
                 if coarsened_graph.vcount() == graph.vcount():
-                    print("break:vcount")
+                    debug_print("break:vcount")
                     break
 
                 self.hierarchy_graphs.append(coarsened_graph)
                 self.hierarchy_levels.append(level[:])
                 graph = coarsened_graph
 
-                print('------------------------------------------graph------------------------------------------')
-                print(graph)
-                print('------------------------------------------graph------------------------------------------')
+                debug_print('------------------------------------------graph------------------------------------------')
+                debug_print(graph)
+                debug_print('------------------------------------------graph------------------------------------------')
                 # break
 
             else:
                 # contract  === false
                 # do_matching
-                print("break:else")
+                debug_print("break:else")
                 break
