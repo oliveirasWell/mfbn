@@ -69,7 +69,6 @@ def modified_starmap_pure_async(*args):
     return function(**args[1])
 
 
-
 class Coarsening:
 
     def __init__(self, source_graph: MGraph, **kwargs):
@@ -168,7 +167,7 @@ class Coarsening:
             sys.exit(1)
         if self.threads > mp.cpu_count():
             debug_print('Number of defined threads (' + str(self.threads) + ') cannot be greater than the real number'
-                                                                      'of cors (' + str(mp.cpu_count()) + ').')
+                                                                            'of cors (' + str(mp.cpu_count()) + ').')
             sys.exit(1)
 
         # Matching method validation
@@ -325,32 +324,43 @@ class Coarsening:
 
                 broadcastGraph = self.sparkContext.broadcast(graph)
 
+                def sort_by_similarity(x):
+                    return -x[1]
+
                 if self.spark:
-                    edges = self.sparkContext.parallelize(spark_args) \
+                    sorted_edges = self.sparkContext.parallelize(spark_args) \
                         .flatMap(lambda argA: gmb_pure_flat(argA, broadcastGraph)) \
                         .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph_similarity)) \
                         .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
                         .map(gmb_pure_map_reduced) \
-                        .map(map_by_key_to_agg) \
-                        .aggregateByKey(zero_val, seq_op, comb_op) \
-                        .flatMap(flat_map_agregated_items) \
-                        .distinct() \
-                        .filter(lambda item: item[1] != -1) \
+                        .sortBy(sort_by_similarity) \
                         .collect()
+
+                    debug_print("/=========edges=========")
+                    debug_print([i for i in sorted_edges])
+                    debug_print("=========edges=========/")
+
+                    # for item in sorted_edges:
+                    #     item_list = item[1]
+                    #     debug_print("/=========edges=========")
+                    #     debug_print([i for i in item_list])
+                    #     debug_print("=========edges=========/")
 
                     # FIXME pass this to a new function
                     final_matching = numpy.arange(graph.vcount())
                     result = numpy.array([-1] * graph.vcount())
                     result[vertices] = vertices
 
-                    sorted_edges = sorted(edges, key=lambda item: item[1][2], reverse=True)
                     visited = [0] * graph.vcount()
 
+                    # remvenber that
+                    # merge_count = int(broadcast_kwargs[0]["reduction_factor"] * len(vertices))
                     for i in sorted_edges:
-                        vertex, neigh, similarity = i[1]
-                        if (visited[vertex] != 1) and (visited[neigh] != 1):
-                            result[neigh] = result[vertex]
-                            visited[neigh] = 1
+                        vertex, neighbor = i[0]
+                        if (visited[vertex] != 1) and (visited[neighbor] != 1):
+                            result[neighbor] = vertex
+                            result[vertex] = vertex
+                            visited[neighbor] = 1
                             visited[vertex] = 1
                             merge_count -= 1
                         if merge_count == 0:
@@ -386,6 +396,10 @@ class Coarsening:
                 # break
 
             else:
+                print('------------------------------------------graph------------------------------------------')
+                print(graph)
+                print('------------------------------------------graph------------------------------------------')
+
                 # contract  === false
                 # do_matching
                 debug_print("break:else")
