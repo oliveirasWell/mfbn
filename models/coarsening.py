@@ -50,6 +50,7 @@ from models.similarity import Similarity
 from models.spark.gmb_matching_pure import gmb_matching_pure
 from models.spark.contract_pure import contract_pure
 from models.spark.seq_op import seq_op
+from models.spark.sort_by_similarity import sort_by_similarity
 from models.spark.sum_matching_array import sum_matching_array
 from models.spark.gmb_pure import gmb_pure_flat, gmb_pure_similarity_flat_map
 from models.spark.utils import debug_print
@@ -314,37 +315,31 @@ class Coarsening:
                 debug_print(contract)
 
                 vertices = flat_map(broadcast_kwargs, lambda arg: arg["vertices"])
-                zero_val = numpy.array([-1] * graph.vcount(), dtype=object)
                 matching = numpy.array([-1] * graph.vcount())
                 matching[vertices] = vertices
-                accum_list = self.sparkContext.accumulator([*matching], ListParam())
-                merge_count = int(broadcast_kwargs[0]["reduction_factor"] * len(vertices))
-
                 final_matching = []
-
                 broadcastGraph = self.sparkContext.broadcast(graph)
 
-                def sort_by_similarity(x):
-                    return -x[1]
-
                 if self.spark:
-                    sorted_edges = self.sparkContext.parallelize(spark_args) \
+                    sorted_edges_by_layer = self.sparkContext.parallelize(spark_args) \
                         .flatMap(lambda argA: gmb_pure_flat(argA, broadcastGraph)) \
                         .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph_similarity)) \
                         .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
                         .map(gmb_pure_map_reduced) \
+                        .distinct() \
                         .sortBy(sort_by_similarity) \
+                        .groupByKey() \
                         .collect()
 
-                    debug_print("/=========edges=========")
-                    debug_print([i for i in sorted_edges])
-                    debug_print("=========edges=========/")
+                    # debug_print("/=========edges=========")
+                    # debug_print([i for i in sorted_edges_by_layer])
+                    # debug_print("=========edges=========/")
 
-                    # for item in sorted_edges:
-                    #     item_list = item[1]
-                    #     debug_print("/=========edges=========")
-                    #     debug_print([i for i in item_list])
-                    #     debug_print("=========edges=========/")
+                    for item in sorted_edges_by_layer:
+                        item_list = item[1]
+                        debug_print("/=========edges=========")
+                        debug_print([i for i in item_list])
+                        debug_print("=========edges=========/")
 
                     # FIXME pass this to a new function
                     final_matching = numpy.arange(graph.vcount())
@@ -353,24 +348,31 @@ class Coarsening:
 
                     visited = [0] * graph.vcount()
 
-                    # remvenber that
-                    # merge_count = int(broadcast_kwargs[0]["reduction_factor"] * len(vertices))
-                    for i in sorted_edges:
-                        vertex, neighbor = i[0]
-                        if (visited[vertex] != 1) and (visited[neighbor] != 1):
-                            result[neighbor] = vertex
-                            result[vertex] = vertex
-                            visited[neighbor] = 1
-                            visited[vertex] = 1
-                            merge_count -= 1
-                        if merge_count == 0:
-                            break
+                    for item in sorted_edges_by_layer:
+                        layer_number = sorted_edges_by_layer.index(item)
+                        broadcast_kwargs_of_layer = broadcast_kwargs[layer_number]
+
+                        merge_count = int(broadcast_kwargs_of_layer["reduction_factor"] * len(broadcast_kwargs_of_layer["vertices"]))
+                        print("merge_count1111111")
+                        print(merge_count)
+
+                        item_list = item[1]
+                        for i in item_list:
+                            vertex, neighbor = i[0]
+                            if (visited[vertex] != 1) and (visited[neighbor] != 1):
+                                result[neighbor] = vertex
+                                result[vertex] = vertex
+                                visited[neighbor] = 1
+                                visited[vertex] = 1
+                                merge_count -= 1
+                            if merge_count == 0:
+                                break
 
                     vertices = numpy.where(result > -1)[0]
                     final_matching[vertices] = result[vertices]
 
                     debug_print("1==================================================")
-                    debug_print(sorted_edges)
+                    debug_print(sorted_edges_by_layer)
                     debug_print("==================================================1")
 
                 # line aggregateByKey -> gets element (neight, vertex) with more similarity and remove other neight, vertex from vertex
