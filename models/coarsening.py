@@ -325,7 +325,7 @@ class Coarsening:
 
                     accum_list.add((vertex, neigh))
 
-                flat_map_items = lambda layer: list(
+                flat_map_agregated_items = lambda layer: list(
                     map(lambda item: (layer[0], -1 if item == -1 else (item[0], item[1], item[2])), layer[1])
                 )
 
@@ -341,7 +341,7 @@ class Coarsening:
                         .map(gmb_pure_map_reduced) \
                         .map(lambda x: (x[0], (x[1][0][0], x[1][0][1], x[1][1]))) \
                         .aggregateByKey(zero_val, seq_op, comb_op) \
-                        .flatMap(flat_map_items) \
+                        .flatMap(flat_map_agregated_items) \
                         .distinct() \
                         .filter(lambda item: item[1] != -1) \
                         .collect()
