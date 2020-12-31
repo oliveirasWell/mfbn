@@ -82,7 +82,6 @@ __docformat__ = 'markdown en'
 __version__ = '0.1.0'
 __date__ = '2020-04-25'
 
-
 def main(sparkContextParam):
     """
     Main entry point for the application when run from the command line.
@@ -108,7 +107,7 @@ def main(sparkContextParam):
     with timing.timeit_context_add('Load graph'):
 
         source_graph = MGraph()
-        source_graph.load(options.input, options.vertices)
+        source_graph.load(options.input, options.vertices, spark=options.spark)
 
     # Coarsening
     with timing.timeit_context_add('Coarsening'):
@@ -214,10 +213,7 @@ def main(sparkContextParam):
 
 
 if __name__ == "__main__":
-    conf = SparkConf().setAppName("mfbn") #\
-        # .set("spark.executor.instances", "1") \
-        # .set("spark.executor.cores", "1")
-
+    conf = SparkConf().setAppName("mfbn")
     sc = SparkContext(conf=conf)
     sc.setLogLevel("ERROR")
     __status = main(sparkContextParam=sc)

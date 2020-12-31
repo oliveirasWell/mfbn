@@ -28,6 +28,8 @@ import yaml
 import os
 
 from datetime import datetime
+import inspect
+
 
 __maintainer__ = 'Alan Valejo'
 __email__ = 'alanvalejo@gmail.com'
@@ -38,6 +40,7 @@ __license__ = 'GNU.GPL.v3'
 __docformat__ = 'markdown en'
 __version__ = '0.1'
 __date__ = '2019-08-08'
+
 
 def setup_parser(filename):
 
@@ -74,6 +77,7 @@ def setup_parser(filename):
 
 	return parser
 
+
 def str2bool(v):
 	if v.lower() in ('yes', 'true', 't', 'y', '1'):
 		return True
@@ -82,13 +86,27 @@ def str2bool(v):
 	else:
 		raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def update_json(options):
 
+def update_json(options):
 	if hasattr(options, 'conf') and options.conf:
-		with open(options.conf) as f:
+		print(options.conf)
+
+		conf_file = options.conf
+
+		if conf_file.startswith('./'):
+			conf_file = '/' + os.path.abspath(
+				os.path.join(
+					os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
+					os.pardir
+				)
+			) + '/' + conf_file.replace('./', '')
+			conf_file = conf_file.replace('//', '/')
+
+		with open(conf_file) as f:
 			json_dict = json.load(f)
 			argparse_dict = vars(options)
 			argparse_dict.update(json_dict)
+
 
 def check_output(options, output_default='out'):
 

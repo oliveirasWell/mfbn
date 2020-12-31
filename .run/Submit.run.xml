@@ -1,0 +1,95 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Submit" type="SparkSubmitConfigurationType" factoryName="SparkJobConfigurationType" show_console_on_std_err="false" show_console_on_std_out="false">
+    <option name="allowRunningInParallel" value="false" />
+    <option name="archives">
+      <list />
+    </option>
+    <option name="artifactArgs" value="-cnf $PROJECT_DIR$/input/moreno-1-gbm.json" />
+    <option name="artifactPath">
+      <FilePath>
+        <option name="path" value="$PROJECT_DIR$/mfbn.py" />
+        <option name="type" value="FILE" />
+      </FilePath>
+    </option>
+    <option name="className" value="" />
+    <option name="clusterManager" value="STANDALONE" />
+    <option name="conf" value="" />
+    <option name="deployMode" value="CLIENT" />
+    <option name="driverClassPath">
+      <list />
+    </option>
+    <option name="driverCores" value="1" />
+    <option name="driverJavaOptions" value="" />
+    <option name="driverLibraryPath">
+      <list />
+    </option>
+    <option name="driverMemory" value="1024M" />
+    <option name="envParams" value="JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 PYSPARK_PYTHON=$USER_HOME$/bin/anaconda3/envs/mfbn/bin/python3 HOME=$PROJECT_DIR$" />
+    <option name="excludePackages" value="" />
+    <option name="executorCores" value="" />
+    <option name="executorMemory" value="1G" />
+    <option name="files">
+      <list>
+        <FilePath>
+          <option name="path" value="$PROJECT_DIR$/input/moreno-1.json" />
+          <option name="type" value="FILE" />
+        </FilePath>
+        <FilePath>
+          <option name="path" value="$PROJECT_DIR$/input/bipartite-time-ncol.ncol" />
+          <option name="type" value="FILE" />
+        </FilePath>
+        <FilePath>
+          <option name="path" value="$PROJECT_DIR$/input/moreno-1-gbm.json" />
+          <option name="type" value="FILE" />
+        </FilePath>
+      </list>
+    </option>
+    <option name="interactive" value="false" />
+    <option name="jars">
+      <list />
+    </option>
+    <option name="keytab">
+      <FilePath>
+        <option name="path" value="" />
+        <option name="type" value="FILE" />
+      </FilePath>
+    </option>
+    <option name="master" value="local" />
+    <option name="numExecutors" value="" />
+    <option name="packages" value="" />
+    <option name="principal" value="" />
+    <option name="propertiesFile">
+      <FilePath>
+        <option name="path" value="" />
+        <option name="type" value="FILE" />
+      </FilePath>
+    </option>
+    <option name="proxyUser" value="" />
+    <option name="pyFiles">
+      <list>
+        <FilePath>
+          <option name="path" value="$PROJECT_DIR$/mfbn.py" />
+          <option name="type" value="FILE" />
+        </FilePath>
+        <FilePath>
+          <option name="path" value="$PROJECT_DIR$/models.zip" />
+          <option name="type" value="FILE" />
+        </FilePath>
+      </list>
+    </option>
+    <option name="queue" value="" />
+    <option name="repositories" value="" />
+    <option name="selectedOptions">
+      <list />
+    </option>
+    <option name="shellExecutor" value="/bin/zsh" />
+    <option name="sparkHome" value="/opt/spark" />
+    <option name="sparkMonitoringDriverId" value="" />
+    <option name="supervise" value="false" />
+    <option name="totalExecutorCores" value="" />
+    <option name="verbose" value="false" />
+    <method v="2">
+      <option name="ToolBeforeRunTask" enabled="true" actionId="Tool_External Tools_build" />
+    </method>
+  </configuration>
+</component>

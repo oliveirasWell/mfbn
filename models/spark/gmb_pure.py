@@ -20,7 +20,7 @@ def flat_map_two_layers_into_one_list_with_neighborhood(args, broadcastGraph) ->
 def map_vertex_neighborhood(vertex, neighborhood, adjlist, current_layer) -> Dict:
     neighborhood = neighborhood(vertices=vertex, order=2)
     twohops = neighborhood[(len(adjlist[vertex]) + 1):]
-    return {'vertex': vertex, 'neighborhood': neighborhood, 'twohops': twohops, 'current_layer': current_layer}
+    return {'vertex': vertex,  'twohops': twohops, 'current_layer': current_layer}
 
 
 #  args, graph: MGraph

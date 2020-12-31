@@ -27,6 +27,8 @@ import numpy
 import random
 import math
 import collections
+import os
+import inspect
 
 from random import sample
 from igraph import Graph
@@ -40,7 +42,6 @@ __license__ = 'GNU.GPL.v3'
 __docformat__ = 'markdown en'
 __version__ = '0.1'
 __date__ = '2019-08-08'
-
 
 def load_ncol(filename):
     """
@@ -58,18 +59,27 @@ def load_ncol(filename):
     edges, weights = list(zip(*dict_edges.items()))
     return edges, weights
 
-
 class MGraph(Graph):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def load(self, network_filename, vertices, filename_type='ncol', type_filename=None):
+    def load(self, network_filename, vertices, filename_type='ncol', type_filename=None, spark=False):
         """
         filename_type: ncol, arff
         """
 
         edges, weights = None, None
+
+        if spark:
+            network_filename = os.path.abspath(
+                os.path.join(
+                    os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
+                    os.pardir
+                )
+            ) + '/' + network_filename.replace('./', '')
+
+        print(network_filename)
         if filename_type == 'ncol':
             edges, weights = load_ncol(network_filename)
 

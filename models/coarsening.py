@@ -331,13 +331,6 @@ class Coarsening:
                         .groupByKey() \
                         .collect()
 
-                    for item in sorted_edges_by_layer:
-                        item_list = item[1]
-                        debug_print("/=========edges=========")
-                        debug_print([i for i in item_list])
-                        debug_print("=========edges=========/")
-
-                    # FIXME pass this to a new function
                     final_matching = numpy.arange(graph.vcount())
                     result = numpy.array([-1] * graph.vcount())
                     result[vertices] = vertices
