@@ -32,28 +32,22 @@ __docformat__ = 'markdown en'
 __version__ = '0.1'
 __date__ = '2019-08-08'
 
-import sys
 import multiprocessing as mp
+import sys
 
 import numpy
 
-from models.spark.comb_op import comb_op
-from models.spark.flat_map_agregated_items import flat_map_agregated_items
-from models.spark.map_by_key_to_agg import map_by_key_to_agg
-from models.spark.refine_args_func import refine_args_func
-from models.spark.gmb_pure_map_reduced import gmb_pure_map_reduced
-from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_sort_reduce_by_similarity
-from models.list_param import ListParam
 from models.mgraph import MGraph
 from models.similarity import Similarity
-
-from models.spark.gmb_matching_pure import gmb_matching_pure
 from models.spark.contract_pure import contract_pure
-from models.spark.seq_op import seq_op
+from models.spark.gmb_matching_pure_spark import gmb_matching_pure_spark
+from models.spark.gmb_pure_similarity_flat_map import gmb_pure_similarity_flat_map
+from models.spark.flat_map_two_layers_into_one_list_with_neighborhood import \
+    flat_map_two_layers_into_one_list_with_neighborhood
+from models.spark.gmb_pure_map_reduced import gmb_pure_map_reduced
+from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_sort_reduce_by_similarity
 from models.spark.sort_by_similarity import sort_by_similarity
-from models.spark.sum_matching_array import sum_matching_array
-from models.spark.gmb_pure import flat_map_two_layers_into_one_list_with_neighborhood, gmb_pure_similarity_flat_map
-from models.spark.utils import debug_print
+from models.spark.debug_print import debug_print
 
 
 def modified_starmap_async_legacy(function, kwargs):
@@ -331,32 +325,7 @@ class Coarsening:
                         .groupByKey() \
                         .collect()
 
-                    final_matching = numpy.arange(graph.vcount())
-                    result = numpy.array([-1] * graph.vcount())
-                    result[vertices] = vertices
-
-                    visited = [0] * graph.vcount()
-
-                    for item in sorted_edges_by_layer:
-                        layer_number = sorted_edges_by_layer.index(item)
-                        broadcast_kwargs_of_layer = broadcast_kwargs[layer_number]
-
-                        merge_count = int(broadcast_kwargs_of_layer["reduction_factor"] * len(broadcast_kwargs_of_layer["vertices"]))
-
-                        item_list = item[1]
-                        for i in item_list:
-                            vertex, neighbor = i[0]
-                            if (visited[vertex] != 1) and (visited[neighbor] != 1):
-                                result[neighbor] = vertex
-                                result[vertex] = vertex
-                                visited[neighbor] = 1
-                                visited[vertex] = 1
-                                merge_count -= 1
-                            if merge_count == 0:
-                                break
-
-                    vertices = numpy.where(result > -1)[0]
-                    final_matching[vertices] = result[vertices]
+                    final_matching = gmb_matching_pure_spark(graph, sorted_edges_by_layer, broadcast_kwargs, vertices)
 
                     debug_print("1==================================================")
                     debug_print(sorted_edges_by_layer)

@@ -1,0 +1,85 @@
+{
+    "output": "../output/bipartite-time-ncol",
+    "directory": null,
+    "extension": "ncol",
+    "vertices": [
+        40000,
+        40000
+    ],
+    "communities": [
+        20,
+        20
+    ],
+    "x": [
+        4,
+        4
+    ],
+    "z": [
+        2,
+        2
+    ],
+    "p": [
+        [
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.04999999999999971
+        ],
+        [
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.04999999999999971
+        ]
+    ],
+    "balanced": true,
+    "d": [
+        0.1
+    ],
+    "mu": [
+        0.1
+    ],
+    "noise": [
+        0.0
+    ],
+    "unweighted": false,
+    "normalize": true,
+    "conf": "../input/bipartite-time-ncol.json",
+    "show_timing": true,
+    "save_timing_csv": false,
+    "save_timing_json": false,
+    "unique_key": false,
+    "edges": 839141
+}

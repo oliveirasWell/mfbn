@@ -43,6 +43,9 @@ __docformat__ = 'markdown en'
 __version__ = '0.1'
 __date__ = '2019-08-08'
 
+from models.spark.debug_print import debug_print
+
+
 def load_ncol(filename):
     """
     Load ncol npartite graph and generate special attributes
@@ -58,6 +61,7 @@ def load_ncol(filename):
 
     edges, weights = list(zip(*dict_edges.items()))
     return edges, weights
+
 
 class MGraph(Graph):
 
@@ -78,8 +82,8 @@ class MGraph(Graph):
                     os.pardir
                 )
             ) + '/' + network_filename.replace('./', '')
+            debug_print(network_filename)
 
-        print(network_filename)
         if filename_type == 'ncol':
             edges, weights = load_ncol(network_filename)
 
@@ -250,13 +254,6 @@ class MGraph(Graph):
         dict_edges = dict()
         visited = [0] * vcount
 
-        # here we are going to use map
-        # sparkContext.parallelize(vertices)
-        #
-        # vertices.map(
-        #  lambda: a : a + 10
-        # )
-
         for vertex in vertices:
             neighborhood = graph.neighborhood(vertices=vertex, order=2)
             twohops = neighborhood[(len(graph['adjlist'][vertex]) + 1):]
@@ -270,13 +267,6 @@ class MGraph(Graph):
         visited = [0] * vcount
         edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
         merge_count = int(reduction_factor * len(vertices))
-
-        # rdd.read(dict_edges)
-        # dict_edges.sortByKey
-        #
-        #
-        # dict_edges
-        #
 
         for edge, value in edges:
             vertex = edge[0]

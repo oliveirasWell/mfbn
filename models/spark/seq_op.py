@@ -1,22 +1,22 @@
-def seq_op(acumulator, element):
+def seq_op(accumulator, element):
 
     if element == -1:
-        return acumulator
+        return accumulator
 
     vertex, neighbor, similaity = element
 
-    if acumulator[neighbor] != -1 and acumulator[neighbor][2] < similaity:
-        actual = acumulator[neighbor]
-        acumulator[actual[0]] = -1
-        acumulator[actual[1]] = -1
+    if accumulator[neighbor] != -1 and accumulator[neighbor][2] < similaity:
+        actual = accumulator[neighbor]
+        accumulator[actual[0]] = -1
+        accumulator[actual[1]] = -1
 
-    if acumulator[vertex] != -1 and acumulator[vertex][2] < similaity:
-        actual = acumulator[vertex]
-        acumulator[actual[0]] = -1
-        acumulator[actual[1]] = -1
+    if accumulator[vertex] != -1 and accumulator[vertex][2] < similaity:
+        actual = accumulator[vertex]
+        accumulator[actual[0]] = -1
+        accumulator[actual[1]] = -1
 
-    if acumulator[neighbor] == -1 and acumulator[vertex] == -1:
-        acumulator[neighbor] = (vertex, neighbor, similaity)
-        acumulator[vertex] = (vertex, neighbor, similaity)
+    if accumulator[neighbor] == -1 and accumulator[vertex] == -1:
+        accumulator[neighbor] = (vertex, neighbor, similaity)
+        accumulator[vertex] = (vertex, neighbor, similaity)
 
-    return acumulator
+    return accumulator
