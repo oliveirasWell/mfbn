@@ -6,22 +6,25 @@ import numpy
 from models.mgraph import MGraph
 
 
-def gmb_matching_pure_spark(graph: MGraph, sorted_edges_by_layer: list, broadcast_kwargs: List[Dict[str, Any]], vertices):
-    final_matching = numpy.arange(graph.vcount())
-    result = numpy.array([-1] * graph.vcount())
-    result[vertices] = vertices
+def gmb_matching_pure_spark(graph: MGraph, sorted_edges_by_layer: list, broadcast_kwargs: List[Dict[str, Any]]):
+    results = []
 
-    visited = [0] * graph.vcount()
-
-    for item in sorted_edges_by_layer:
-        layer_number = sorted_edges_by_layer.index(item)
+    for layer in sorted_edges_by_layer:
+        layer_number = sorted_edges_by_layer.index(layer)
         broadcast_kwargs_of_layer = broadcast_kwargs[layer_number]
 
-        merge_count = int(broadcast_kwargs_of_layer["reduction_factor"] * len(broadcast_kwargs_of_layer["vertices"]))
+        result = numpy.array([-1] * graph.vcount())
+        vertices_ = broadcast_kwargs_of_layer["vertices"]
+        result[vertices_] = vertices_
+        visited = [0] * graph.vcount()
 
-        item_list = item[1]
-        for i in item_list:
-            vertex, neighbor = i[0]
+        merge_count = int(broadcast_kwargs_of_layer["reduction_factor"] * len(vertices_))
+        item_list = layer[1]
+        item_list_ordered = [i for i in sorted(item_list, key=lambda x: (x[1], x[0][0], x[0][1]), reverse=True)]
+
+        for edge, value in item_list_ordered:
+            vertex = edge[0]
+            neighbor = edge[1]
             if (visited[vertex] != 1) and (visited[neighbor] != 1):
                 result[neighbor] = vertex
                 result[vertex] = vertex
@@ -31,6 +34,11 @@ def gmb_matching_pure_spark(graph: MGraph, sorted_edges_by_layer: list, broadcas
             if merge_count == 0:
                 break
 
-    vertices = numpy.where(result > -1)[0]
-    final_matching[vertices] = result[vertices]
-    return final_matching
+        results.append(result)
+
+    matching = numpy.arange(graph.vcount())
+    for result in results:
+        vertices = numpy.where(result > -1)[0]
+        matching[vertices] = result[vertices]
+
+    return matching

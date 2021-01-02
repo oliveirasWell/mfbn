@@ -26,7 +26,7 @@
     <option name="driverMemory" value="1024M" />
     <option name="envParams" value="JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 PYSPARK_PYTHON=$USER_HOME$/bin/anaconda3/envs/mfbn/bin/python3 HOME=$PROJECT_DIR$" />
     <option name="excludePackages" value="" />
-    <option name="executorCores" value="" />
+    <option name="executorCores" value="4" />
     <option name="executorMemory" value="1G" />
     <option name="files">
       <list>
@@ -86,7 +86,7 @@
     <option name="sparkHome" value="/opt/spark" />
     <option name="sparkMonitoringDriverId" value="" />
     <option name="supervise" value="false" />
-    <option name="totalExecutorCores" value="" />
+    <option name="totalExecutorCores" value="8" />
     <option name="verbose" value="false" />
     <method v="2">
       <option name="ToolBeforeRunTask" enabled="true" actionId="Tool_External Tools_build" />

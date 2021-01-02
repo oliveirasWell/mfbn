@@ -182,7 +182,7 @@ class MGraph(Graph):
 
         return coarse
 
-    def gmb(self, sparkContext=None, vertices=None, reduction_factor=0.5, reverse=True):
+    def gmb(self, vertices=None, reduction_factor=0.5, reverse=True):
         """
         Matches are restricted between vertices that are not adjacent
         but are only allowed to match with neighbors of its neighbors,
@@ -195,13 +195,6 @@ class MGraph(Graph):
         # Search two-hopes neighborhood for each vertex in selected layer
         dict_edges = dict()
         visited = [0] * self.vcount()
-
-        # here we are going to use map
-        # sparkContext.parallelize(vertices)
-        #
-        # vertices.map(
-        #  lambda: a : a + 10
-        # )
 
         for vertex in vertices:
             neighborhood = self.neighborhood(vertices=vertex, order=2)
@@ -216,13 +209,6 @@ class MGraph(Graph):
         visited = [0] * self.vcount()
         edges = sorted(dict_edges.items(), key=operator.itemgetter(1), reverse=reverse)
         merge_count = int(reduction_factor * len(vertices))
-
-        # rdd.read(dict_edges)
-        # dict_edges.sortByKey
-        #
-        #
-        # dict_edges
-        #
 
         for edge, value in edges:
             vertex = edge[0]

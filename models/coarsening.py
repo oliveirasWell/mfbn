@@ -41,11 +41,11 @@ from models.mgraph import MGraph
 from models.similarity import Similarity
 from models.spark.contract_pure import contract_pure
 from models.spark.gmb_matching_pure_spark import gmb_matching_pure_spark
-from models.spark.gmb_pure_similarity_flat_map import gmb_pure_similarity_flat_map
+from models.spark.gmb_pure_similarity_flat_map import gmb_pure_compute_neigh_list_with_similarity
 from models.spark.flat_map_two_layers_into_one_list_with_neighborhood import \
-    flat_map_two_layers_into_one_list_with_neighborhood
-from models.spark.gmb_pure_map_reduced import gmb_pure_map_reduced
-from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_sort_reduce_by_similarity
+    gmb_pure_flat_map_two_layers_into_one_list_with_neighborhood
+from models.spark.gmb_pure_map_reduced import gmb_pure_map_by_layer_reduced
+from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_map_neight_with_great_similarity
 from models.spark.sort_by_similarity import sort_by_similarity
 from models.spark.debug_print import debug_print
 
@@ -309,18 +309,15 @@ class Coarsening:
                 debug_print(contract)
 
                 vertices = flat_map(broadcast_kwargs, lambda arg: arg["vertices"])
-                matching = numpy.array([-1] * graph.vcount())
-                matching[vertices] = vertices
                 final_matching = []
                 broadcastGraph = self.sparkContext.broadcast(graph)
 
                 if self.spark:
                     sorted_edges_by_layer = self.sparkContext.parallelize(spark_args) \
-                        .flatMap(lambda argA: flat_map_two_layers_into_one_list_with_neighborhood(argA, broadcastGraph)) \
-                        .flatMap(lambda argA: gmb_pure_similarity_flat_map(argA, graph_similarity)) \
-                        .reduceByKey(lambda a, b: gmb_pure_sort_reduce_by_similarity(a, b)) \
-                        .map(gmb_pure_map_reduced) \
-                        .distinct() \
+                        .flatMap(lambda arg: gmb_pure_flat_map_two_layers_into_one_list_with_neighborhood(arg, broadcastGraph)) \
+                        .flatMap(lambda arg: gmb_pure_compute_neigh_list_with_similarity(arg, graph_similarity)) \
+                        .reduceByKey(lambda a, b: gmb_pure_map_neight_with_great_similarity(a, b)) \
+                        .map(gmb_pure_map_by_layer_reduced) \
                         .sortBy(sort_by_similarity) \
                         .groupByKey() \
                         .collect()
@@ -328,17 +325,13 @@ class Coarsening:
                     final_matching = gmb_matching_pure_spark(graph, sorted_edges_by_layer, broadcast_kwargs, vertices)
 
                     debug_print("1==================================================")
-                    debug_print(sorted_edges_by_layer)
+                    # for layer in sorted_edges_by_layer:
+                    #     for element in layer[1]:
+                    #         debug_print("{},".format(element))
                     debug_print("==================================================1")
-
-                # line aggregateByKey -> gets element (neight, vertex) with more similarity and remove other neight, vertex from vertex
 
                 coarsened_graph = contract_pure(input_graph=graph, matching=final_matching)
                 coarsened_graph['level'] = level
-
-                debug_print("vcount")
-                debug_print(coarsened_graph.vcount())
-                debug_print(graph.vcount())
 
                 if coarsened_graph.vcount() == graph.vcount():
                     debug_print("break:vcount")
