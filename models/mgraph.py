@@ -43,7 +43,7 @@ __docformat__ = 'markdown en'
 __version__ = '0.1'
 __date__ = '2019-08-08'
 
-from models.spark.debug_print import debug_print
+from models.spark.utils.debug_print import debug_print
 
 
 def load_ncol(filename):

@@ -35,19 +35,17 @@ __date__ = '2019-08-08'
 import multiprocessing as mp
 import sys
 
-import numpy
-
 from models.mgraph import MGraph
 from models.similarity import Similarity
-from models.spark.contract_pure import contract_pure
-from models.spark.gmb_matching_pure_spark import gmb_matching_pure_spark
-from models.spark.gmb_pure_similarity_flat_map import gmb_pure_compute_neigh_list_with_similarity
-from models.spark.flat_map_two_layers_into_one_list_with_neighborhood import \
+from models.spark.functions.contract_pure import contract_pure
+from models.spark.functions.gmb_matching_pure_spark import gmb_matching_pure_spark
+from models.spark.functions.gmb_pure_similarity_flat_map import gmb_pure_compute_neigh_list_with_similarity
+from models.spark.functions.flat_map_two_layers_into_one_list_with_neighborhood import \
     gmb_pure_flat_map_two_layers_into_one_list_with_neighborhood
-from models.spark.gmb_pure_map_reduced import gmb_pure_map_by_layer_reduced
-from models.spark.gmb_pure_sort_reduce_by_similarity import gmb_pure_map_neight_with_great_similarity
-from models.spark.sort_by_similarity import sort_by_similarity
-from models.spark.debug_print import debug_print
+from models.spark.functions.gmb_pure_map_reduced import gmb_pure_map_by_layer_reduced
+from models.spark.functions.gmb_pure_sort_reduce_by_similarity import gmb_pure_map_neight_with_great_similarity
+from models.spark.functions.sort_by_similarity import sort_by_similarity
+from models.spark.utils.debug_print import debug_print
 
 
 def modified_starmap_async_legacy(function, kwargs):

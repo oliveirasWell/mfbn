@@ -1,7 +1,7 @@
 import numpy
 
 from models.mgraph import MGraph
-from models.spark.debug_print import debug_print
+from models.spark.utils.debug_print import debug_print
 
 
 def contract_pure(input_graph: MGraph, matching: numpy.ndarray):

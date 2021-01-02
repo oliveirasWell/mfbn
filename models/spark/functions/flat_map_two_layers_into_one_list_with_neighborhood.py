@@ -1,7 +1,7 @@
 from typing import List
 
 from models.mgraph import MGraph
-from models.spark.map_vertex_neighborhood import map_vertex_neighborhood
+from models.spark.functions.map_vertex_neighborhood import map_vertex_neighborhood
 from models.spark.types.SparkCoarseningArgs import SparkCoarseningArgs
 
 
