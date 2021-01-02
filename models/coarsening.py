@@ -320,7 +320,7 @@ class Coarsening:
                         .groupByKey() \
                         .collect()
 
-                    final_matching = gmb_matching_pure_spark(graph, sorted_edges_by_layer, broadcast_kwargs, vertices)
+                    final_matching = gmb_matching_pure_spark(graph, sorted_edges_by_layer, broadcast_kwargs)
 
                     debug_print("1==================================================")
                     # for layer in sorted_edges_by_layer:
